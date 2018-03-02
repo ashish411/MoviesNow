@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">MoviesNow</string>
+    <string name="navBarMovies">Movies</string>
+    <string name="navBarTv">Tv Series</string>
+</resources>
