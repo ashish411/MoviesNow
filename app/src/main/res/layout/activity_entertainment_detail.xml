@@ -6,19 +6,27 @@
     android:layout_height="match_parent"
     tools:context="com.example.ashish.moviesnow.EntertainmentDetail">
 
+    <ProgressBar
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/loadingDetails"
+        style="@style/Widget.AppCompat.ProgressBar.Horizontal"
+        android:indeterminate="true"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"/>
 
     <FrameLayout
         android:id="@+id/posterFrame"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
-
+        app:layout_constraintTop_toBottomOf="@+id/loadingDetails"
+        >
         <ImageView
             android:id="@+id/moviePoster"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_height="wrap_content"
+            android:adjustViewBounds="true"
             android:scaleType="fitXY"
             tools:src="@drawable/ic_launcher_background" />
 
@@ -29,6 +37,7 @@
             android:layout_gravity="bottom"
             android:layout_marginBottom="8dp"
             android:layout_marginLeft="16dp"
+            android:textColor="@color/white"
             android:textSize="24sp"
             tools:text="102 minutes" />
 
@@ -38,6 +47,7 @@
             android:layout_height="wrap_content"
             android:layout_gravity="bottom|end"
             android:layout_marginBottom="8dp"
+            android:textColor="@color/white"
             android:layout_marginRight="16dp"
             android:textSize="24sp"
             tools:text="27-02-1996" />
@@ -46,23 +56,54 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
-            android:src="@drawable/ic_play_circle_outline_black_24dp" />
+            android:src="@drawable/ic_play_circle_filled_white_48dp" />
 
     </FrameLayout>
 
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="20sp"
+        app:layout_constraintTop_toBottomOf="@+id/posterFrame"
+        android:id="@+id/titleFrame">
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:id="@+id/movieTitle"
+            tools:text="Movie Name"
+            android:textAlignment="center"
+            android:textSize="20sp"
+            android:textColor="@color/movieNameBackground"/>
+
+    </FrameLayout>
 
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:id="@+id/overviewFrame"
+        android:background="@drawable/box"
+        android:layout_margin="4dp"
+        android:padding="8dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/posterFrame">
-
+        app:layout_constraintTop_toBottomOf="@id/titleFrame"
+        >
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical">
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Overview"
+            android:textSize="13sp"/>
         <TextView
             android:layout_width="match_parent"
             android:layout_height="match_parent"
+            android:textSize="20sp"
+            android:textColor="@color/movieNameBackground"
             android:id="@+id/movieOverview"/>
+        </LinearLayout>
     </FrameLayout>
 
 
@@ -70,16 +111,26 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginEnd="8dp"
+        android:layout_marginTop="8dp"
         android:id="@+id/genreFrame"
         android:layout_marginStart="8dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/overviewFrame">
-
-        <TextView
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:id="@+id/genres"/>
+            android:orientation="vertical">
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/genresTitle"/>
+
+            <android.support.v7.widget.RecyclerView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:id="@+id/genresRecyclerView"/>
+        </LinearLayout>
     </FrameLayout>
 
 
