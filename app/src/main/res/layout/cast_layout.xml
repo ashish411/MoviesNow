@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<android.support.constraint.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_marginLeft="8dp"
+    android:layout_marginRight="8dp"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <ImageView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/castImage"
+        android:contentDescription="@string/castContentDesc"
+        tools:src="@drawable/ic_launcher_background"
+        app:layout_constraintTop_toBottomOf="parent"/>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/castName"
+        app:layout_constraintTop_toBottomOf="@+id/castImage"
+        android:textSize="20sp"
+        android:textColor="@color/movieNameBackground"
+        android:textAlignment="center"
+        tools:text="Actor Name"/>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/castMovieName"
+        app:layout_constraintTop_toBottomOf="@+id/castName"
+        tools:text="character name"
+        android:textAlignment="center"/>
+</android.support.constraint.ConstraintLayout>

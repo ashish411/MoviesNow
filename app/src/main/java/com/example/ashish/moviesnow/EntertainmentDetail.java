@@ -18,7 +18,9 @@ import com.android.volley.VolleyError;
 import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
 import com.example.ashish.moviesnow.Constants.Constants;
+import com.example.ashish.moviesnow.Model.CastDetails;
 import com.example.ashish.moviesnow.Model.DetailInf;
+import com.example.ashish.moviesnow.adapters.CastListAdapter;
 import com.example.ashish.moviesnow.adapters.GenreListAdapter;
 import com.squareup.picasso.Picasso;
 
@@ -30,7 +32,9 @@ import org.w3c.dom.Text;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 public class EntertainmentDetail extends AppCompatActivity {
 
@@ -39,8 +43,9 @@ public class EntertainmentDetail extends AppCompatActivity {
     private TextView runtimeText,dorText,overviewText,titleText;
     private ProgressBar progressBar;
 
+    private List<CastDetails> mCastDetailsList;
 
-    private RecyclerView genresRecyclerView;
+    private RecyclerView genresRecyclerView, castRecyclerView;
     private String[] genresArray;
 
     @Override
@@ -55,22 +60,24 @@ public class EntertainmentDetail extends AppCompatActivity {
         overviewText=(TextView)findViewById(R.id.movieOverview);
         titleText = (TextView)findViewById(R.id.movieTitle);
         genresRecyclerView = (RecyclerView)findViewById(R.id.genresRecyclerView);
+        castRecyclerView = (RecyclerView)findViewById(R.id.castRecyclerView);
 
-
+        mCastDetailsList = new ArrayList<>();
         int movieId = getIntent().getIntExtra(Constants.MOVIE_ID,0);
         String movieDetailUrl = getMovieDetailUrl(movieId);
-        requestMovieDetails(movieDetailUrl);
+        String castDetailUrl = getCastUrl(movieId);
+        requestMovieDetails(movieDetailUrl,castDetailUrl);
+
     }
 
-    private void requestMovieDetails(String movieDetailUrl) {
+    private void requestMovieDetails(String movieDetailUrl, String castDetailUrl) {
         StringRequest sr = new StringRequest(Request.Method.GET, movieDetailUrl, new Response.Listener<String>() {
             @Override
             public void onResponse(String response) {
                 try {
                     JSONObject root = new JSONObject(response);
-                    String baseUrl = "https://image.tmdb.org/t/p/w500";
                     String backdropPath = root.getString("backdrop_path");
-                    String movieUrl = baseUrl+backdropPath;
+                    String movieUrl = Constants.POSTER_BASE_URL+backdropPath;
                     int runtime = root.getInt("runtime");
                     String dor = root.getString("release_date");
                     String overview = root.getString("overview");
@@ -96,8 +103,8 @@ public class EntertainmentDetail extends AppCompatActivity {
                     titleText.setText(movieDetails.getTitle());
                     ResizableCustomView.doResizeTextView(overviewText,2,
                             "View More",true);
-
                     getGenresItems();
+
                 } catch (JSONException e) {
                     e.printStackTrace();
                 }
@@ -112,8 +119,45 @@ public class EntertainmentDetail extends AppCompatActivity {
 
             }
         });
+
+        StringRequest sr2 = new StringRequest(Request.Method.GET, castDetailUrl, new Response.Listener<String>() {
+            @Override
+            public void onResponse(String response) {
+                try {
+                    JSONObject root = new JSONObject(response);
+                    JSONArray castArray = root.getJSONArray("cast");
+                    if (castArray.length()>0){
+                        for (int i=0;i<5;i++){
+                            JSONObject obj = castArray.getJSONObject(i);
+                            String profilePath =  obj.getString("profile_path");
+                            String castProfileUrl = Constants.CAST_BASE_URL+profilePath;
+                            String castRealName = obj.getString("name");
+                            String castMovieName = obj.getString("character");
+                            mCastDetailsList.add(new CastDetails(castRealName,castMovieName,castProfileUrl));
+                        }
+                        getMovieCast();
+                    }
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            }
+        }, new Response.ErrorListener() {
+            @Override
+            public void onErrorResponse(VolleyError error) {
+
+            }
+        });
         RequestQueue queue = Volley.newRequestQueue(this);
         queue.add(sr);
+        queue.add(sr2);
+    }
+
+    private void getMovieCast() {
+        RecyclerView.LayoutManager lm = new LinearLayoutManager(getApplicationContext(),
+                LinearLayoutManager.HORIZONTAL,false);
+        castRecyclerView.setLayoutManager(lm);
+        CastListAdapter adapter = new CastListAdapter(getApplicationContext(),mCastDetailsList);
+        castRecyclerView.setAdapter(adapter);
     }
 
     private void formatDate(String releaseDate) {
@@ -133,9 +177,23 @@ public class EntertainmentDetail extends AppCompatActivity {
         RecyclerView.LayoutManager lm = new LinearLayoutManager(getApplicationContext(),
                 LinearLayoutManager.HORIZONTAL,false);
         genresRecyclerView.setLayoutManager(lm);
+
         GenreListAdapter adapter = new GenreListAdapter(getApplicationContext(),genresArray);
         genresRecyclerView.setAdapter(adapter);
 
+    }
+
+    private String getCastUrl(int movieId) {
+        // https://api.themoviedb.org/3/movie/284054/credits?api_key=c686b5d39204b19a48fb9a27f5457a41
+        Uri.Builder builder = new Uri.Builder();
+        builder.scheme("https")
+                .authority("api.themoviedb.org")
+                .appendPath("3")
+                .appendPath("movie")
+                .appendPath(String.valueOf(movieId))
+                .appendPath("credits")
+                .appendQueryParameter("api_key",BuildConfig.MY_MOVIE_DB_API_KEY);
+        return builder.build().toString();
     }
 
     private String getMovieDetailUrl(int movieId) {

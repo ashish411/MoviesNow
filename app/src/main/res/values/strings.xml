@@ -3,4 +3,6 @@
     <string name="navBarMovies">Movies</string>
     <string name="navBarTv">Tv Series</string>
     <string name="genresTitle">Genre:</string>
+    <string name="castName">Cast</string>
+    <string name="castContentDesc">Image for the character name</string>
 </resources>
