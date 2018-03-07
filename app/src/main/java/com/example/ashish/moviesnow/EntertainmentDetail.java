@@ -1,5 +1,8 @@
 package com.example.ashish.moviesnow;
 
+import android.content.ActivityNotFoundException;
+import android.content.Context;
+import android.content.Intent;
 import android.net.Uri;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -10,6 +13,7 @@ import android.view.View;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
@@ -39,12 +43,13 @@ import java.util.List;
 public class EntertainmentDetail extends AppCompatActivity {
 
     private DetailInf movieDetails;
-    private ImageView moviePoster;
+    private ImageView moviePoster,mPlayBtn;
     private TextView runtimeText,dorText,overviewText,titleText;
     private ProgressBar progressBar;
 
     private List<CastDetails> mCastDetailsList;
 
+    private String videoLink = null;
     private RecyclerView genresRecyclerView, castRecyclerView;
     private String[] genresArray;
 
@@ -53,25 +58,28 @@ public class EntertainmentDetail extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_entertainment_detail);
 
-        progressBar = (ProgressBar) findViewById(R.id.loadingDetails);
-        moviePoster = (ImageView)findViewById(R.id.moviePoster);
-        runtimeText = (TextView)findViewById(R.id.runtime);
-        dorText= (TextView)findViewById(R.id.dor);
-        overviewText=(TextView)findViewById(R.id.movieOverview);
-        titleText = (TextView)findViewById(R.id.movieTitle);
-        genresRecyclerView = (RecyclerView)findViewById(R.id.genresRecyclerView);
-        castRecyclerView = (RecyclerView)findViewById(R.id.castRecyclerView);
+        mPlayBtn = findViewById(R.id.playButton);
+        progressBar = findViewById(R.id.loadingDetails);
+        moviePoster = findViewById(R.id.moviePoster);
+        runtimeText = findViewById(R.id.runtime);
+        dorText= findViewById(R.id.dor);
+        overviewText= findViewById(R.id.movieOverview);
+        titleText = findViewById(R.id.movieTitle);
+        genresRecyclerView = findViewById(R.id.genresRecyclerView);
+        castRecyclerView = findViewById(R.id.castRecyclerView);
 
         mCastDetailsList = new ArrayList<>();
         int movieId = getIntent().getIntExtra(Constants.MOVIE_ID,0);
         String movieDetailUrl = getMovieDetailUrl(movieId);
         String castDetailUrl = getCastUrl(movieId);
-        requestMovieDetails(movieDetailUrl,castDetailUrl);
+        String videoUrlApi = getVideosLink(movieId);
+        requestMovieDetails(movieDetailUrl,castDetailUrl,videoUrlApi);
 
+        mPlayBtn.setVisibility(View.GONE);
     }
 
-    private void requestMovieDetails(String movieDetailUrl, String castDetailUrl) {
-        StringRequest sr = new StringRequest(Request.Method.GET, movieDetailUrl, new Response.Listener<String>() {
+    private void requestMovieDetails(String movieDetailUrl, String castDetailUrl, final String videoUrlApi) {
+        StringRequest movieDetailReq = new StringRequest(Request.Method.GET, movieDetailUrl, new Response.Listener<String>() {
             @Override
             public void onResponse(String response) {
                 try {
@@ -108,19 +116,16 @@ public class EntertainmentDetail extends AppCompatActivity {
                 } catch (JSONException e) {
                     e.printStackTrace();
                 }
-                finally {
-                    progressBar.setVisibility(View.GONE);
-                }
 
             }
         }, new Response.ErrorListener() {
             @Override
             public void onErrorResponse(VolleyError error) {
-
+                Toast.makeText(getApplicationContext(),error.toString(),Toast.LENGTH_SHORT).show();
             }
         });
 
-        StringRequest sr2 = new StringRequest(Request.Method.GET, castDetailUrl, new Response.Listener<String>() {
+        StringRequest castRequest = new StringRequest(Request.Method.GET, castDetailUrl, new Response.Listener<String>() {
             @Override
             public void onResponse(String response) {
                 try {
@@ -144,12 +149,55 @@ public class EntertainmentDetail extends AppCompatActivity {
         }, new Response.ErrorListener() {
             @Override
             public void onErrorResponse(VolleyError error) {
+                Toast.makeText(getApplicationContext(),error.toString(),Toast.LENGTH_SHORT).show();
+            }
+        });
 
+
+        StringRequest videoRequest = new StringRequest(Request.Method.GET, videoUrlApi, new Response.Listener<String>() {
+            @Override
+            public void onResponse(String response) {
+                try {
+                    JSONObject root = new JSONObject(response);
+                    JSONArray resultsArray = root.getJSONArray("results");
+                    if (resultsArray.length()>0){
+                        StringBuilder builder = new StringBuilder(Constants.VIDEO_LINK_BASE_URL);
+                        builder.append(resultsArray.getJSONObject(0).getString("key"));
+                        videoLink = builder.toString();
+                    }
+                    mPlayBtn.setVisibility(View.VISIBLE);
+
+                    moviePoster.setOnClickListener(new View.OnClickListener() {
+                        @Override
+                        public void onClick(View view) {
+                            openYoutubeLink(getApplicationContext(),videoLink);
+                        }
+                    });
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+                finally {
+                    progressBar.setVisibility(View.GONE);
+                }
+
+            }
+        }, new Response.ErrorListener() {
+            @Override
+            public void onErrorResponse(VolleyError error) {
+                Toast.makeText(getApplicationContext(),error.toString(),Toast.LENGTH_SHORT).show();
             }
         });
         RequestQueue queue = Volley.newRequestQueue(this);
-        queue.add(sr);
-        queue.add(sr2);
+        queue.add(movieDetailReq);
+        queue.add(videoRequest);
+        queue.add(castRequest);
+
+    }
+
+    private void openYoutubeLink(Context context, String videoLink) {
+        Log.i("TAG",videoLink);
+        Intent appIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(videoLink));
+       context.startActivity(appIntent);
     }
 
     private void getMovieCast() {
@@ -211,4 +259,25 @@ public class EntertainmentDetail extends AppCompatActivity {
         }
         return null;
     }
+
+
+    private String getVideosLink(int movieId) {
+        if (movieId != 0) {
+        //https://api.themoviedb.org/3/movie/354912/videos?api_key=c686b5d39204b19a48fb9a27f5457a41&language=en-US
+            Uri.Builder builder = new Uri.Builder();
+            builder.scheme("https")
+                    .authority("api.themoviedb.org")
+                    .appendPath("3")
+                    .appendPath("movie")
+                    .appendPath(String.valueOf(movieId))
+                    .appendPath("videos")
+                    .appendQueryParameter("api_key", BuildConfig.MY_MOVIE_DB_API_KEY)
+                    .appendQueryParameter("language", "en-US");
+            return builder.build().toString();
+        }
+        return null;
+
+    }
+
+
 }

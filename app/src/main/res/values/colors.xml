@@ -6,4 +6,5 @@
     <color name="movieNameBackground">#000</color>
     <color name="white">#fff</color>
     <color name="rectBoxBckgrnd">#FFEE58</color>
+    <color name="detailBckg">#f1f5f8</color>
 </resources>

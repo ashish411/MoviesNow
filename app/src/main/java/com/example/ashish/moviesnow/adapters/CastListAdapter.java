@@ -36,9 +36,21 @@ public class CastListAdapter extends RecyclerView.Adapter<CastListAdapter.MyView
     public void onBindViewHolder(MyViewHolder holder, int position) {
 
         CastDetails cd = mList.get(position);
+        String replacedString = cd.getmCastMovieName();
+        if (replacedString.contains("/")){
+            replacedString = replacedString.replace("/","/\n");
+        }
+        else if (replacedString.contains(",")){
+            replacedString = replacedString.replace(",","\n");
+        }
+        else if (replacedString.length()>30){
+            replacedString = replacedString.replace(" ","\n");
+        }
         holder.mCastText.setText(cd.getmCastRealName());
-        holder.mCastMovieName.setText(cd.getmCastMovieName());
-        Picasso.with(mContext).load(cd.getmCastPoster()).into(holder.mCastImage);
+        holder.mCastMovieName.setText(replacedString);
+        Picasso.with(mContext).load(cd.getmCastPoster())
+                .placeholder(R.drawable.ic_launcher_foreground)
+                .into(holder.mCastImage);
     }
 
     @Override
