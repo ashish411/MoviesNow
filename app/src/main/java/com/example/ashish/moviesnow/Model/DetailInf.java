@@ -6,13 +6,13 @@ package com.example.ashish.moviesnow.Model;
 
 public class DetailInf {
     private String moviePoster;
-    private int runtime;
+    private String runtime;
     private String releaseDate;
     private String overview;
     private String[] genre;
     private String title;
 
-    public DetailInf(String moviePoster, int runtime, String releaseDate, String overview,
+    public DetailInf(String moviePoster, String runtime, String releaseDate, String overview,
                      String[] genre, String title) {
         this.moviePoster = moviePoster;
         this.runtime = runtime;
@@ -30,7 +30,7 @@ public class DetailInf {
         return moviePoster;
     }
 
-    public int getRuntime() {
+    public String getRuntime() {
         return runtime;
     }
 

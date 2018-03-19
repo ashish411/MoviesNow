@@ -1,15 +1,21 @@
 package com.example.ashish.moviesnow;
 
-import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Bitmap;
 import android.net.Uri;
+import android.os.Build;
+import android.support.annotation.NonNull;
+import android.support.design.widget.CollapsingToolbarLayout;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.graphics.Palette;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.View;
+import android.view.animation.OvershootInterpolator;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
@@ -19,76 +25,107 @@ import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
-import com.android.volley.toolbox.StringRequest;
+import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
 import com.example.ashish.moviesnow.Constants.Constants;
 import com.example.ashish.moviesnow.Model.CastDetails;
 import com.example.ashish.moviesnow.Model.DetailInf;
+import com.example.ashish.moviesnow.Model.Movie;
+import com.example.ashish.moviesnow.Model.Reviews;
+import com.example.ashish.moviesnow.Utility.Utility;
 import com.example.ashish.moviesnow.adapters.CastListAdapter;
 import com.example.ashish.moviesnow.adapters.GenreListAdapter;
+import com.example.ashish.moviesnow.adapters.ReviewAdapter;
 import com.squareup.picasso.Picasso;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.w3c.dom.Text;
 
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
+
+import at.blogc.android.views.ExpandableTextView;
 
 public class EntertainmentDetail extends AppCompatActivity {
 
     private DetailInf movieDetails;
-    private ImageView moviePoster,mPlayBtn;
-    private TextView runtimeText,dorText,overviewText,titleText;
+    private ImageView moviePoster,mPlayBtn,mExpandMoreBtn;
+    private TextView runtimeText,dorText;
+    private ExpandableTextView overviewText;
     private ProgressBar progressBar;
-
     private List<CastDetails> mCastDetailsList;
-
+    private List<Reviews> reviewsList;
+    private Toolbar toolbar;
     private String videoLink = null;
-    private RecyclerView genresRecyclerView, castRecyclerView;
+    private RecyclerView genresRecyclerView, castRecyclerView, reviewsRecyclerView;
     private String[] genresArray;
+    private CollapsingToolbarLayout collapsingToolbarLayout;
+    private ReviewAdapter reviewAdapter;
+    private CastListAdapter castListAdapter;
+    private Context mContext;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_entertainment_detail);
+        toolbar = (Toolbar) findViewById(R.id.toolbar);
+        collapsingToolbarLayout = (CollapsingToolbarLayout) findViewById(R.id.collapsing_toolbar);
 
+
+        mContext = getApplicationContext();
+        setSupportActionBar(toolbar);
+        getSupportActionBar().setDisplayShowTitleEnabled(false);
+
+        reviewsRecyclerView = findViewById(R.id.reviewsRecyclerView);
+        mExpandMoreBtn = findViewById(R.id.expandDesc);
         mPlayBtn = findViewById(R.id.playButton);
         progressBar = findViewById(R.id.loadingDetails);
         moviePoster = findViewById(R.id.moviePoster);
         runtimeText = findViewById(R.id.runtime);
         dorText= findViewById(R.id.dor);
-        overviewText= findViewById(R.id.movieOverview);
-        titleText = findViewById(R.id.movieTitle);
+        overviewText= (ExpandableTextView) findViewById(R.id.expandableText);
         genresRecyclerView = findViewById(R.id.genresRecyclerView);
         castRecyclerView = findViewById(R.id.castRecyclerView);
 
+        overviewText.setInterpolator(new OvershootInterpolator());
+
         mCastDetailsList = new ArrayList<>();
         int movieId = getIntent().getIntExtra(Constants.MOVIE_ID,0);
-        String movieDetailUrl = getMovieDetailUrl(movieId);
-        String castDetailUrl = getCastUrl(movieId);
-        String videoUrlApi = getVideosLink(movieId);
-        requestMovieDetails(movieDetailUrl,castDetailUrl,videoUrlApi);
+
+        String movieDetailUrl = Utility.getMovieDetailUrl(movieId);
+        String castDetailUrl = Utility.getCastUrl(movieId);
+        String videoUrlApi = Utility.getVideosLink(movieId);
+        String reviewsUrl = Utility.getReviewsLink(movieId);
+
+        requestMovieDetails(movieDetailUrl,castDetailUrl,videoUrlApi,reviewsUrl);
 
         mPlayBtn.setVisibility(View.GONE);
     }
 
-    private void requestMovieDetails(String movieDetailUrl, String castDetailUrl, final String videoUrlApi) {
-        StringRequest movieDetailReq = new StringRequest(Request.Method.GET, movieDetailUrl, new Response.Listener<String>() {
+    private void requestMovieDetails(String movieDetailUrl, String castDetailUrl, final String videoUrlApi, String reviewsUrl) {
+        JsonObjectRequest movieDetailReq = new JsonObjectRequest(Request.Method.GET, movieDetailUrl, null, new Response.Listener<JSONObject>() {
             @Override
-            public void onResponse(String response) {
+            public void onResponse(JSONObject root) {
                 try {
-                    JSONObject root = new JSONObject(response);
                     String backdropPath = root.getString("backdrop_path");
                     String movieUrl = Constants.POSTER_BASE_URL+backdropPath;
-                    int runtime = root.getInt("runtime");
+                    String runtime;
+                    if (root.isNull("runtime"))
+                        runtime = "N.A";
+                    else
+                        runtime = String.valueOf(root.getInt("runtime"));
                     String dor = root.getString("release_date");
-                    String overview = root.getString("overview");
+                    final String overview = root.getString("overview");
                     StringBuilder builder = new StringBuilder();
 
                     JSONArray genreArray = root.getJSONArray("genres");
@@ -105,43 +142,46 @@ public class EntertainmentDetail extends AppCompatActivity {
 
                     Picasso.with(getApplicationContext()).load(movieDetails.getMoviePoster())
                             .into(moviePoster);
-                    runtimeText.setText(String.valueOf(movieDetails.getRuntime()) + " min");
+                    runtimeText.setText(movieDetails.getRuntime() + " min");
                     formatDate(movieDetails.getReleaseDate());
+                    collapsingToolbarLayout.setTitle(movieDetails.getTitle());
                     overviewText.setText(movieDetails.getOverview());
-                    titleText.setText(movieDetails.getTitle());
-                    ResizableCustomView.doResizeTextView(overviewText,2,
-                            "View More",true);
-                    getGenresItems();
 
-                } catch (JSONException e) {
-                    e.printStackTrace();
-                }
 
-            }
-        }, new Response.ErrorListener() {
-            @Override
-            public void onErrorResponse(VolleyError error) {
-                Toast.makeText(getApplicationContext(),error.toString(),Toast.LENGTH_SHORT).show();
-            }
-        });
-
-        StringRequest castRequest = new StringRequest(Request.Method.GET, castDetailUrl, new Response.Listener<String>() {
-            @Override
-            public void onResponse(String response) {
-                try {
-                    JSONObject root = new JSONObject(response);
-                    JSONArray castArray = root.getJSONArray("cast");
-                    if (castArray.length()>0){
-                        for (int i=0;i<5;i++){
-                            JSONObject obj = castArray.getJSONObject(i);
-                            String profilePath =  obj.getString("profile_path");
-                            String castProfileUrl = Constants.CAST_BASE_URL+profilePath;
-                            String castRealName = obj.getString("name");
-                            String castMovieName = obj.getString("character");
-                            mCastDetailsList.add(new CastDetails(castRealName,castMovieName,castProfileUrl));
+                    mExpandMoreBtn.setOnClickListener(new View.OnClickListener() {
+                        @Override
+                        public void onClick(View view) {
+                          mExpandMoreBtn.setImageResource(overviewText.isExpanded() ?
+                                  R.drawable.ic_expand_more_black_24dp :
+                                  R.drawable.ic_expand_less_black_24dp);
+                          overviewText.toggle();
                         }
-                        getMovieCast();
+                    });
+                    try {
+                        URL url = new URL(movieDetails.getMoviePoster());
+                        Bitmap bitmap = new PictureLoadingTask().execute(url).get();
+                        Palette.from(bitmap).generate(new Palette.PaletteAsyncListener() {
+                            @Override
+                            public void onGenerated(@NonNull Palette palette) {
+                                int mutedColor = palette.getMutedColor(R.attr.colorPrimary);
+                                collapsingToolbarLayout.setContentScrimColor(mutedColor);
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP){
+                                    getWindow().setStatusBarColor(mutedColor);
+                                }
+                            }
+                        });
+                    } catch (MalformedURLException e) {
+                        e.printStackTrace();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    } catch (ExecutionException e) {
+                        e.printStackTrace();
                     }
+
+
+                    getGenresItems();
                 } catch (JSONException e) {
                     e.printStackTrace();
                 }
@@ -153,13 +193,11 @@ public class EntertainmentDetail extends AppCompatActivity {
             }
         });
 
-
-        StringRequest videoRequest = new StringRequest(Request.Method.GET, videoUrlApi, new Response.Listener<String>() {
+        JsonObjectRequest videoRequest = new JsonObjectRequest(Request.Method.GET, videoUrlApi, null, new Response.Listener<JSONObject>() {
             @Override
-            public void onResponse(String response) {
+            public void onResponse(JSONObject response) {
                 try {
-                    JSONObject root = new JSONObject(response);
-                    JSONArray resultsArray = root.getJSONArray("results");
+                    JSONArray resultsArray = response.getJSONArray("results");
                     if (resultsArray.length()>0){
                         StringBuilder builder = new StringBuilder(Constants.VIDEO_LINK_BASE_URL);
                         builder.append(resultsArray.getJSONObject(0).getString("key"));
@@ -179,7 +217,6 @@ public class EntertainmentDetail extends AppCompatActivity {
                 finally {
                     progressBar.setVisibility(View.GONE);
                 }
-
             }
         }, new Response.ErrorListener() {
             @Override
@@ -187,10 +224,87 @@ public class EntertainmentDetail extends AppCompatActivity {
                 Toast.makeText(getApplicationContext(),error.toString(),Toast.LENGTH_SHORT).show();
             }
         });
+
+        JsonObjectRequest castRequest = new JsonObjectRequest(Request.Method.GET, castDetailUrl, null, new Response.Listener<JSONObject>() {
+            @Override
+            public void onResponse(JSONObject response) {
+                try {
+                    JSONArray castArray = response.getJSONArray("cast");
+                    if (castArray.length()>0){
+                        for (int i=0;i<5;i++){
+                            JSONObject obj = castArray.getJSONObject(i);
+                            String profilePath =  obj.getString("profile_path");
+                            String castProfileUrl = Constants.CAST_BASE_URL+profilePath;
+                            String castRealName = obj.getString("name");
+                            String castMovieName = obj.getString("character");
+                            mCastDetailsList.add(new CastDetails(castRealName,castMovieName,castProfileUrl));
+                        }
+                        castListAdapter = new CastListAdapter(mContext,mCastDetailsList);
+                        getMovieCast();
+                    }
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            }
+        }, new Response.ErrorListener() {
+            @Override
+            public void onErrorResponse(VolleyError error) {
+                Toast.makeText(getApplicationContext(),error.toString(),Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        JsonObjectRequest reviewsReq = new JsonObjectRequest(Request.Method.GET, reviewsUrl, null, new Response.Listener<JSONObject>() {
+            @Override
+            public void onResponse(JSONObject response) {
+                try {
+                    reviewsList = new ArrayList<>();
+                    parseJsonData(response);
+                    setReviewData();
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            }
+        }, new Response.ErrorListener() {
+            @Override
+            public void onErrorResponse(VolleyError error) {
+                Toast.makeText(getApplicationContext(),error.toString(),Toast.LENGTH_SHORT).show();
+            }
+        });
+
+
         RequestQueue queue = Volley.newRequestQueue(this);
         queue.add(movieDetailReq);
         queue.add(videoRequest);
         queue.add(castRequest);
+        queue.add(reviewsReq);
+    }
+
+    private void setReviewData() {
+        RecyclerView.LayoutManager lm = new LinearLayoutManager(getApplicationContext()
+                ,LinearLayoutManager.HORIZONTAL,false);
+        reviewsRecyclerView.setLayoutManager(lm);
+        Log.v("tag","reviews List size"+reviewsList.size());
+        reviewsRecyclerView.setAdapter(reviewAdapter);
+    }
+
+    private void parseJsonData(JSONObject response) throws JSONException {
+        JSONArray resultsArray = response.getJSONArray("results");
+        String author = null;
+        String content = null;
+        String linkUrl = null;
+        if (resultsArray.length()>0){
+            for (int i=0;i<resultsArray.length();i++){
+                JSONObject obj = resultsArray.getJSONObject(i);
+                author = obj.getString("author");
+                content = obj.getString("content");
+                linkUrl = obj.getString("url");
+            }
+        }
+        else {
+            content = "Movie Not Yet Reviewed";
+        }
+        reviewsList.add(new Reviews(author,content,linkUrl));
+        reviewAdapter = new ReviewAdapter(mContext,reviewsList);
 
     }
 
@@ -204,8 +318,7 @@ public class EntertainmentDetail extends AppCompatActivity {
         RecyclerView.LayoutManager lm = new LinearLayoutManager(getApplicationContext(),
                 LinearLayoutManager.HORIZONTAL,false);
         castRecyclerView.setLayoutManager(lm);
-        CastListAdapter adapter = new CastListAdapter(getApplicationContext(),mCastDetailsList);
-        castRecyclerView.setAdapter(adapter);
+        castRecyclerView.setAdapter(castListAdapter);
     }
 
     private void formatDate(String releaseDate) {
@@ -228,54 +341,6 @@ public class EntertainmentDetail extends AppCompatActivity {
 
         GenreListAdapter adapter = new GenreListAdapter(getApplicationContext(),genresArray);
         genresRecyclerView.setAdapter(adapter);
-
-    }
-
-    private String getCastUrl(int movieId) {
-        // https://api.themoviedb.org/3/movie/284054/credits?api_key=c686b5d39204b19a48fb9a27f5457a41
-        Uri.Builder builder = new Uri.Builder();
-        builder.scheme("https")
-                .authority("api.themoviedb.org")
-                .appendPath("3")
-                .appendPath("movie")
-                .appendPath(String.valueOf(movieId))
-                .appendPath("credits")
-                .appendQueryParameter("api_key",BuildConfig.MY_MOVIE_DB_API_KEY);
-        return builder.build().toString();
-    }
-
-    private String getMovieDetailUrl(int movieId) {
-        if (movieId != 0) {
-            //https://api.themoviedb.org/3/movie/335777?api_key=c686b5d39204b19a48fb9a27f5457a41&language=en-US
-            Uri.Builder builder = new Uri.Builder();
-            builder.scheme("https")
-                    .authority("api.themoviedb.org")
-                    .appendPath("3")
-                    .appendPath("movie")
-                    .appendPath(String.valueOf(movieId))
-                    .appendQueryParameter("api_key", BuildConfig.MY_MOVIE_DB_API_KEY)
-                    .appendQueryParameter("language", "en-US");
-            return builder.build().toString();
-        }
-        return null;
-    }
-
-
-    private String getVideosLink(int movieId) {
-        if (movieId != 0) {
-        //https://api.themoviedb.org/3/movie/354912/videos?api_key=c686b5d39204b19a48fb9a27f5457a41&language=en-US
-            Uri.Builder builder = new Uri.Builder();
-            builder.scheme("https")
-                    .authority("api.themoviedb.org")
-                    .appendPath("3")
-                    .appendPath("movie")
-                    .appendPath(String.valueOf(movieId))
-                    .appendPath("videos")
-                    .appendQueryParameter("api_key", BuildConfig.MY_MOVIE_DB_API_KEY)
-                    .appendQueryParameter("language", "en-US");
-            return builder.build().toString();
-        }
-        return null;
 
     }
 

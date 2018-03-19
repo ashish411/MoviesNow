@@ -7,4 +7,6 @@
     <color name="white">#fff</color>
     <color name="rectBoxBckgrnd">#FFEE58</color>
     <color name="detailBckg">#f1f5f8</color>
+    <color name="line">#c0c0c0</color>
+    <color name="movieDescActivityBckgrnd">#EEEEEE</color>
 </resources>

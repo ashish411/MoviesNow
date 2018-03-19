@@ -43,6 +43,9 @@ public class CastListAdapter extends RecyclerView.Adapter<CastListAdapter.MyView
         else if (replacedString.contains(",")){
             replacedString = replacedString.replace(",","\n");
         }
+        else if (replacedString.contains("-")){
+            replacedString = replacedString.replace(",","\n");
+        }
         else if (replacedString.length()>30){
             replacedString = replacedString.replace(" ","\n");
         }
